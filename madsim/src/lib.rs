@@ -15,6 +15,8 @@ pub use madsim_macros::{service, Request};
 mod sim;
 #[cfg(madsim)]
 pub use sim::*;
+#[cfg(madsim)]
+pub use sim::task::pre_run;
 
 #[cfg(not(madsim))]
 #[path = "std/mod.rs"]

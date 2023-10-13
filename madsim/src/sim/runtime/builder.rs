@@ -113,8 +113,16 @@ impl Builder {
         F::Output: Send,
     {
         if self.check {
-            return Runtime::check_determinism(self.seed, self.config, f);
+            let mut i = 0;
+            loop {
+                let ret = Runtime::check_determinism(self.seed + i, self.config.clone(), f);
+                i += 1;
+                if i >= self.count {
+                    return ret;
+                }
+            }
         }
+
         let mut stream = stream::iter(self.seed..self.seed + self.count)
             .map(|seed| {
                 let config = self.config.clone();

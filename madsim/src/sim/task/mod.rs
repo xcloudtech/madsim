@@ -24,10 +24,13 @@ use std::{
     task::{Context, Poll, Waker},
     time::{Duration, Instant},
 };
+use std::cell::Cell;
+use std::sync::Once;
 use tokio::sync::watch;
 use tracing::{debug, error, error_span, trace, Span};
 
 pub use tokio::task::yield_now;
+use crate::runtime::Runtime;
 
 type StaticLocation = &'static Location<'static>;
 type Runnable = async_task::Runnable<Weak<TaskInfo>>;
@@ -749,15 +752,53 @@ unsafe extern "C" fn sysconf(name: libc::c_int) -> libc::c_long {
     SYSCONF(name)
 }
 
+#[derive(Clone, Copy, PartialEq, Default)]
+enum PreRunStatus {
+    Running,
+    Complete,
+    #[default]
+    Unknown,
+}
+
+thread_local! {
+    static PRE_RUN_STATUS: Cell<PreRunStatus> = Cell::new(PreRunStatus::default());
+}
+
+/// Spawns a new system thread for initialisation. The code will be executed only once. Use it to isolate the code from the actual async task.
+pub fn pre_run<F>(f: fn() -> F)
+    where
+        F: Future + 'static,
+        F::Output: Send,
+{
+    let status = PRE_RUN_STATUS.with(|s| s.get());
+    if status != PreRunStatus::default() {
+        panic!("Don't call pre_run function twice");
+    }
+    PRE_RUN_STATUS.with(|s| s.set(PreRunStatus::Running));
+    static RUN_ONCE: Once = Once::new();
+    RUN_ONCE.call_once(|| {
+        std::thread::spawn(move || {
+            Runtime::new().block_on(f())
+        }).join()
+            .map_err(|e| std::panic::resume_unwind( e))
+            .unwrap();
+    });
+    PRE_RUN_STATUS.with(|s| s.set(PreRunStatus::Complete));
+}
+
 /// Forbid creating system thread in simulation.
 #[no_mangle]
 #[inline(never)]
 unsafe extern "C" fn pthread_attr_init(attr: *mut libc::pthread_attr_t) -> libc::c_int {
     if crate::context::try_current_task().is_some() {
-        eprintln!("attempt to spawn a system thread in simulation.");
-        eprintln!("note: try to use tokio tasks instead.");
-        return -1;
+        let status = PRE_RUN_STATUS.with(|s| s.get());
+        if status != PreRunStatus::Running {
+            eprintln!("attempt to spawn a system thread in simulation.");
+            eprintln!("note: try to use tokio tasks instead.");
+            return -1;
+        }
     }
+
     lazy_static::lazy_static! {
         static ref PTHREAD_ATTR_INIT: unsafe extern "C" fn(attr: *mut libc::pthread_attr_t) -> libc::c_int = unsafe {
             let ptr = libc::dlsym(libc::RTLD_NEXT, b"pthread_attr_init\0".as_ptr() as _);

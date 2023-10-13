@@ -11,3 +11,7 @@ members = [
     "tonic-example",
 ]
 resolver = "2"
+
+
+[workspace.dependencies]
+tokio = { git = "https://github.com/xcloudtech/tokio.git", package = "tokio", tag = "xvv-1.32.0" }
