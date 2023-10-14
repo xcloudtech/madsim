@@ -303,8 +303,8 @@ impl Executor {
                 }
             }
 
-            // advance time: 50-100ns
-            let dur = Duration::from_nanos(self.rand.with(|rng| rng.gen_range(50..100)));
+            // advance time: 30-60µs from real tokio runtime records, but here it should be smaller.
+            let dur = Duration::from_micros(self.rand.with(|rng| rng.gen_range(1..10)));
             self.time.handle().advance(dur);
         }
     }
