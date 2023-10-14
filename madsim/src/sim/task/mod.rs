@@ -27,7 +27,7 @@ use std::{
 use std::cell::Cell;
 use std::sync::Once;
 use tokio::sync::watch;
-use tracing::{debug, error, error_span, trace, Span};
+use tracing::{debug, error, trace, Span, trace_span};
 
 pub use tokio::task::yield_now;
 use crate::runtime::Runtime;
@@ -120,7 +120,7 @@ impl NodeInfo {
         let id = Id::new();
         let name = name.map(|s| s.to_string());
         let task = Arc::new(TaskInfo {
-            span: error_span!(parent: &self.span, "task", %id, name),
+            span: trace_span!(parent: &self.span, "task", %id, name),
             id,
             name,
             node: self.clone(),
@@ -193,7 +193,7 @@ impl Executor {
                     cores: 1,
                     restart_on_panic: false,
                     restart_on_panic_matching: vec![],
-                    span: error_span!("node", id = %NodeId::zero(), name = "main"),
+                    span: trace_span!("node", id = %NodeId::zero(), name = "main"),
                     paused: AtomicBool::new(false),
                     killed: AtomicBool::new(false),
                     tasks: Mutex::new(vec![]),
@@ -371,7 +371,7 @@ impl TaskHandle {
             restart_on_panic_matching: node.info.restart_on_panic_matching.clone(),
             paused: AtomicBool::new(false),
             killed: AtomicBool::new(false),
-            span: error_span!(parent: None, "node", %id, name = &node.info.name),
+            span: trace_span!(parent: None, "node", %id, name = &node.info.name),
             tasks: Mutex::new(vec![]),
             ctrl_c: Mutex::new(None),
         });
@@ -441,7 +441,7 @@ impl TaskHandle {
         let name = &builder.name;
         debug!(node = %id, name, "create");
         let info = Arc::new(NodeInfo {
-            span: error_span!(parent: None, "node", %id, name),
+            span: trace_span!(parent: None, "node", %id, name),
             id,
             name: builder.name.clone(),
             cores: builder.cores.unwrap_or(1),
