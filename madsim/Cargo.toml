@@ -42,13 +42,13 @@ naive-timer = "0.2"
 panic-message = "0.3"
 rand_xoshiro = "0.6"
 rustversion = "1"
-tokio = { workspace = true, features = ["rt", "sync"] }
+tokio = { workspace = true, features = ["rt", "sync", "io-util"] }
 toml = "0.7"
 
 [target.'cfg(not(madsim))'.dependencies]
 async-ucx = { version = "0.1", features = ["event"], optional = true }
 tokio = { workspace = true, features = ["rt", "fs", "net", "time", "io-util", "sync", "signal"] }
-tokio-util = { version = "0.7", features = ["codec"] }
+tokio-util = { workspace = true, features = ["codec"] }
 # mad_rpc = { git = "https://github.com/madsys-dev/madrpc", rev = "2be4b02", optional = true }
 
 [dev-dependencies]
